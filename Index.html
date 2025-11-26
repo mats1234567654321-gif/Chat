@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Browser-Chat mit Anmeldung & Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #22c55e;
+      --danger: #ef4444;
+      --border: #374151;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      display: grid; place-items: center; min-height: 100vh; padding: 1rem;
+    }
+    .app { width: 100%; max-width: 1000px; display: grid; gap: 1rem; }
+    header, footer {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 0.75rem 1rem;
+    }
+    header { display: flex; align-items: center; justify-content: space-between; }
+    .brand { font-weight: 700; }
+    .muted { color: var(--muted); font-size: 0.9rem; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 800px) { .row { grid-template-columns: 1fr; } }
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; }
+    h2 { margin: 0 0 0.75rem 0; font-size: 1.1rem; }
+    label { display: block; font-size: 0.9rem; margin-bottom: 0.25rem; color: var(--muted); }
+    input, button { font: inherit; color: var(--text); }
+    input {
+      width: 100%; background: #0b1220; border: 1px solid var(--border);
+      padding: 0.6rem; border-radius: 10px; outline: none;
+    }
+    button {
+      background: #183049; border: 1px solid #2a415b; padding: 0.6rem 0.9rem; border-radius: 10px;
+      cursor: pointer;
+    }
+    button:hover { background: #1f3a5c; }
+    .btn-accent { background: #124932; border-color: #1b6a4a; }
+    .btn-danger { background: #4a1a1a; border-color: #6b2121; }
+    .stack { display: grid; gap: 0.75rem; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .bar { display: flex; gap: 0.5rem; align-items: center; }
+    .spacer { flex: 1; }
+    .pill { display: inline-block; font-size: 0.75rem; color: var(--muted);
+      border: 1px solid var(--border); border-radius: 999px; padding: 0.2rem 0.5rem; }
+    .list { display: grid; gap: 0.5rem; }
+    .item { display: grid; grid-template-columns: auto 1fr auto; gap: 0.5rem; align-items: center;
+      background: #0b1220; border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.75rem; }
+    .chat { display: grid; grid-template-rows: auto 1fr auto; gap: 0.75rem; min-height: 400px; }
+    .messages { background: #0b1220; border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem;
+      overflow-y: auto; max-height: 60vh; display: grid; gap: 0.5rem; }
+    .msg { background: #0f1a2a; border: 1px solid #1f2a3a; border-radius: 10px; padding: 0.5rem 0.75rem; }
+    .msg.me { background: #102335; border-color: #25374b; }
+    .msg .meta { font-size: 0.8rem; color: var(--muted); }
+    .msg .text { white-space: pre-wrap; }
+    .hidden { display: none !important; }
+    .error { color: #fca5a5; }
+    .success { color: #86efac; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">Chat • Rollen & Verantwortung</div>
+      <div class="bar">
+        <span id="sessionUser" class="pill">Gast</span>
+        <button id="logoutBtn" class="hidden">Logout</button>
+      </div>
+    </header>
+
+    <div class="row">
+      <!-- Login Panel -->
+      <section id="loginPanel" class="panel">
+        <h2>Anmeldung</h2>
+        <div class="stack">
+          <div>
+            <label>Benutzername</label>
+            <input id="loginUser" autocomplete="username" />
+          </div>
+          <div>
+            <label>Passwort</label>
+            <input id="loginPass" type="password" autocomplete="current-password" />
+          </div>
+          <div class="bar">
+            <button id="loginBtn" class="btn-accent">Einloggen</button>
+            <span id="loginMsg" class="small"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Admin Panel -->
+      <section id="adminPanel" class="panel hidden">
+        <h2>Admin-Bereich</h2>
+        <div class="stack">
+          <div class="grid-2">
+            <div>
+              <label>Neuer Benutzername</label>
+              <input id="newUser" />
+            </div>
+            <div>
+              <label>Startpasswort</label>
+              <input id="newPass" type="password" />
+            </div>
+          </div>
+          <div class="bar">
+            <button id="addUserBtn" class="btn-accent">Benutzer hinzufügen</button>
+            <span id="adminMsg" class="small"></span>
+          </div>
+
+          <div>
+            <label>Benutzerliste</label>
+            <div id="userList" class="list"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Chat Panel -->
+    <section id="chatPanel" class="panel hidden">
+      <h2>Chat</h2>
+      <div class="chat">
+        <div class="bar">
+          <span id="chatInfo" class="small muted">Globaler Raum</span>
+          <div class="spacer"></div>
+          <span id="messageCount" class="pill">0 Nachrichten</span>
+        </div>
+        <div id="messages" class="messages"></div>
+        <div class="bar">
+          <input id="chatInput" placeholder="Nachricht schreiben…" />
+          <button id="sendBtn" class="btn-accent">Senden</button>
+        </div>
+        <div id="chatMsg" class="small"></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const ADMIN_PASSWORD = "change-me-strong-admin-pass";
+    const LS_USERS = "chat_users";
+    const LS_MESSAGES = "chat_messages";
+    const LS_SESSION = "chat_session";
+    const channel = new BroadcastChannel("chat");
+
+    async function sha256(text) {
+      const enc = new TextEncoder().encode(text);
+      const hash = await crypto.subtle.digest("SHA-256", enc);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+    function nowISO() { return new Date().toISOString(); }
+    function readJSON(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } }
+    function writeJSON(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
+    function setText(el, text) { el.textContent = text; }
+    function show(el)
